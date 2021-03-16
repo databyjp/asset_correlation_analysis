@@ -5,6 +5,7 @@ import pandas as pd
 import requests
 import json
 import random
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def main():
     sp_500_tickers = get_sp_500_list()
 
     # Get n random tickers
-    n_tickers = 10  # HOW MANY STOCKS SHOULD WE GET DATA FOR?
+    n_tickers = 5  # HOW MANY STOCKS SHOULD WE GET DATA FOR?
     ticker_list = random.sample(sp_500_tickers, n_tickers)
 
     # ========== Get tickers to use ==========
@@ -69,12 +70,16 @@ def main():
     date_range = '3m'
     prices_list = list()
     for ticker in ticker_list:
-        resp = get_prices(ticker, iex_tkn, date_param=date_range)
-        if resp is not None:
-            prices_obj = parse_resp(resp)
-            with open(f"data/{ticker}_{date_range}.json", "w") as f:
-                json.dump(prices_obj, f)
-            prices_list.append(prices_obj)
+        outpath = f"data/{ticker}_{date_range}.json"
+        if not os.path.exists(outpath):  # Check that the file isn't already there
+            resp = get_prices(ticker, iex_tkn, date_param=date_range)
+            if resp is not None:
+                prices_obj = parse_resp(resp)
+                with open(outpath, "w") as f:
+                    json.dump(prices_obj, f)
+                prices_list.append(prices_obj)
+        else:
+            logger.info(f"Data exists for {outpath}, skipping")
 
 
 if __name__ == '__main__':
