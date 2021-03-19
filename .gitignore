@@ -1,5 +1,6 @@
 # Project specific
 data
+out_img
 
 # Temporary files
 temp

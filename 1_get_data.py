@@ -6,6 +6,7 @@ import requests
 import json
 import random
 import os
+import utils
 
 logger = logging.getLogger(__name__)
 
@@ -14,22 +15,17 @@ pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', desired_width)
 
 
-def get_sp_500_list():
-    df = pd.read_csv("srcdata/sp_500_constituents.csv")
-    return df["Symbol"].to_list()
-
-
 def parse_resp(resp):
     resp_obj = json.loads(resp.text)
     return resp_obj
 
 
-def get_prices(ticker, key, date_param='5d'):
+def get_prices(symbol, key, date_param='5d'):
 
     url_prefix = "https://cloud.iexapis.com/stable/"
 
-    path = f'stock/{ticker}/chart/{date_param}?chartCloseOnly=True&&token={key}'
-    logger.info(f"Fetching {date_param} data for {ticker}")
+    path = f'stock/{symbol}/chart/{date_param}?chartCloseOnly=True&&token={key}'
+    logger.info(f"Fetching {date_param} data for {symbol}")
     full_url = requests.compat.urljoin(url_prefix, path)
 
     try:
@@ -55,24 +51,24 @@ def main():
     sh.setFormatter(formatter)
     root_logger.addHandler(sh)
 
-    # ========== Get tickers to use ==========
-    # Get S&P 500 tickers
-    sp_500_tickers = get_sp_500_list()
+    # ========== Get symbols to use ==========
+    # Get S&P 500 symbols
+    sp_500_symbols = utils.get_sp_500_list()
 
-    # Get n random tickers
-    n_tickers = 5  # HOW MANY STOCKS SHOULD WE GET DATA FOR?
-    ticker_list = random.sample(sp_500_tickers, n_tickers)
+    # Get n random symbols
+    n_symbols = 30  # HOW MANY STOCKS SHOULD WE GET DATA FOR?
+    symbol_list = random.sample(sp_500_symbols, n_symbols)
 
-    # ========== Get tickers to use ==========
+    # ========== Get symbols to use ==========
     with open("../../tokens/iex_token.txt", "r") as f:
         iex_tkn = f.read().strip()
 
     date_range = '3m'
     prices_list = list()
-    for ticker in ticker_list:
-        outpath = f"data/{ticker}_{date_range}.json"
+    for symbol in symbol_list:
+        outpath = f"data/{symbol}_{date_range}.json"
         if not os.path.exists(outpath):  # Check that the file isn't already there
-            resp = get_prices(ticker, iex_tkn, date_param=date_range)
+            resp = get_prices(symbol, iex_tkn, date_param=date_range)
             if resp is not None:
                 prices_obj = parse_resp(resp)
                 with open(outpath, "w") as f:
