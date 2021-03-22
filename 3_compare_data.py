@@ -4,7 +4,6 @@ import logging
 import pandas as pd
 import numpy as np
 import utils
-import random
 import scipy.stats
 import plotly.express as px
 
@@ -57,41 +56,26 @@ def main():
     neg_pair = [symbols[neg_inds[0][0]], symbols[neg_inds[0][1]]]
     pos_pair = [symbols[pos_inds[0][0]], symbols[pos_inds[0][1]]]
 
-    neg_df = df[df.symbol.isin(neg_pair)]
-    neg_piv_df = neg_df[["norm_close", "symbol", "date"]].pivot("date", "symbol")
-    neg_piv_df = neg_piv_df.dropna()
-    neg_piv_df.columns = neg_piv_df.columns.get_level_values(1)
-    neg_piv_df = neg_piv_df.assign(avg=(neg_piv_df["CERN"] + neg_piv_df["WYNN"]) / 2).reset_index()
-    new_neg_df = neg_piv_df.melt(id_vars="date")
-    fig = px.line(new_neg_df, x="date", y="value", color="symbol",
-                  color_discrete_sequence=px.colors.qualitative.Safe,
-                  title=f"Advantages of negative correlation - {utils.get_comp_name(neg_pair[0])} & {utils.get_comp_name(neg_pair[1])}",
-                  height=400, width=800,
-                  labels={"value": "Relative price", "date": "Date", "symbol": "Symbol"},
-                  template="plotly_white")
-    fig.show()
+    corr_order = np.argsort(tmp_arr.flatten())
+    corr_num = corr_order[-3]
+    print(symbols[corr_num // len(symbols)], symbols[corr_num % len(symbols)])
+    pos_pair_2 = [symbols[corr_num // len(symbols)], symbols[corr_num % len(symbols)]]
 
-    # ========== VIEW SAMPLE RESULTS ==========
-    n_symbols = 3
-    symbol_samples = random.sample(range(len(symbols)), n_symbols)
-    symbol_samples = [symbols.index("MSFT"), symbols.index("JNJ"), symbols.index("MMM"), symbols.index("JPM")]
-    # For those symbols - get n closest & furthest symbols
-    for i in symbol_samples:
-        tmp_sym = symbols[i]
-        closest_i = np.argsort(r_array[i])[-4:-1][::-1]
-        furthest_i = np.argsort(r_array[i])[:3]
-        closest_syms = [symbols[j] for j in closest_i]
-        furthest_syms = [symbols[j] for j in furthest_i]
-        print(f"For {tmp_sym}: closest symbols: {closest_syms}")
-        print(f"For {tmp_sym}: furthest symbols: {furthest_syms}")
-        tmp_df = df[df["symbol"].isin([tmp_sym]+closest_syms+furthest_syms)]
-        fig = px.line(tmp_df, x="date", y="norm_close", color="symbol",
-                      title=f"Most correlated stocks to {tmp_sym}",
-                      color_discrete_sequence=["red"] + ["LightSalmon"] * n_symbols + ["LightSteelBlue"] * n_symbols,
-                      category_orders={"symbol": [tmp_sym] + closest_syms + furthest_syms},
+    for tmp_pair in [min_pair, neg_pair, pos_pair, pos_pair_2]:
+        pair_df = df[df.symbol.isin(tmp_pair)]
+        pair_piv_df = pair_df[["norm_close", "symbol", "date"]].pivot("date", "symbol")
+        pair_piv_df = pair_piv_df.dropna()
+        pair_piv_df.columns = pair_piv_df.columns.get_level_values(1)
+        pair_piv_df = pair_piv_df.assign(avg=pair_piv_df.mean(axis=1)).reset_index()
+        pair_df = pair_piv_df.melt(id_vars="date")
+        fig = px.line(pair_df, x="date", y="value", color="symbol",
+                      color_discrete_sequence=px.colors.qualitative.Safe,
+                      title=f"Correlation - {utils.get_comp_name(tmp_pair[0])} & {utils.get_comp_name(tmp_pair[1])}",
+                      height=400, width=800,
+                      labels={"value": "Relative price", "date": "Date", "symbol": "Symbol"},
                       template="plotly_white")
         fig.show()
-
+        fig.write_image(f"out_img/corr_{tmp_pair[0]}_{tmp_pair[1]}.png")
 
 
 if __name__ == '__main__':

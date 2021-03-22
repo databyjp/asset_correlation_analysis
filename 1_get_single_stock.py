@@ -4,20 +4,13 @@ import logging
 import pandas as pd
 import requests
 import json
-import random
-import os
-import utils
+import plotly.express as px
 
 logger = logging.getLogger(__name__)
 
 desired_width = 320
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', desired_width)
-
-
-def parse_resp(resp):
-    resp_obj = json.loads(resp.text)
-    return resp_obj
 
 
 def get_prices(symbol, key, date_param='5d'):
@@ -51,31 +44,22 @@ def main():
     sh.setFormatter(formatter)
     root_logger.addHandler(sh)
 
-    # ========== Get symbols to use ==========
-    # Get S&P 500 symbols
-    sp_500_symbols = utils.get_sp_500_list()
-
-    # Get n random symbols
-    n_symbols = 30  # HOW MANY STOCKS SHOULD WE GET DATA FOR?
-    symbol_list = random.sample(sp_500_symbols, n_symbols)
-
-    # ========== Get symbols to use ==========
+    # ========== Get token ==========
     with open("../../tokens/iex_token.txt", "r") as f:
         iex_tkn = f.read().strip()
 
-    date_range = '3m'
-    prices_list = list()
-    for symbol in symbol_list:
-        outpath = f"data/{symbol}_{date_range}.json"
-        if not os.path.exists(outpath):  # Check that the file isn't already there
-            resp = get_prices(symbol, iex_tkn, date_param=date_range)
-            if resp is not None:
-                prices_obj = parse_resp(resp)
-                with open(outpath, "w") as f:
-                    json.dump(prices_obj, f)
-                prices_list.append(prices_obj)
-        else:
-            logger.info(f"Data exists for {outpath}, skipping")
+    date_range = "3m"
+    symbol = "MSFT"
+    resp = get_prices(symbol, iex_tkn, date_param=date_range)
+    if resp is not None:
+        prices_obj = json.loads(resp.text)
+    df = pd.DataFrame(prices_obj)
+
+    fig = px.line(df, x="date", y="close", template="plotly_white",
+                  title=f"Stock price history for {symbol}",
+                  height=800, width=1600)
+    fig.show()
+    fig.write_image("out_img/msft_example.png")
 
 
 if __name__ == '__main__':

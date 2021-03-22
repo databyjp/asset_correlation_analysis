@@ -12,15 +12,16 @@ pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', desired_width)
 
 
-def get_sp_500_list():
+def get_sp_500_data():
     df = pd.read_csv("srcdata/sp_500_constituents.csv")
-    return df["Symbol"].to_list()
+    return df
 
 
 def get_comp_name(symbol):
     df = pd.read_csv("srcdata/sp_500_constituents.csv")
     name = df[df.Symbol == symbol]["Name"].values[0]
     return name
+
 
 def load_data(data_dir="data"):
     json_list = [i for i in os.listdir(data_dir) if i.endswith(".json")]
