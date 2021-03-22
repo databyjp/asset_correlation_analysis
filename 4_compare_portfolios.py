@@ -63,27 +63,14 @@ def main():
         val_list.append({"Portfolio": sect, "Std. dev": pf1_std, "returns": pf1_avg[-1]-1})
         print(f"St. dev for portfolio in {sect} sector: {pf1_std:.3f}")
 
-    # Portfolio 2: 1 stock each from N random sectors
-    sectors_list = sp500_df.Sector.unique()
-    rand_symbols = list()
+    # Portfolio 2: N random stocks
     n_symbols = 10
-    for sect in sectors_list:
-        sym_in_sect = list(sp500_df[sp500_df.Sector == sect].Symbol.values)
-        sym = random.choice(df[df.symbol.isin(sym_in_sect)].symbol.values)
-        rand_symbols.append(sym)
-    rand_symbols = random.sample(rand_symbols, n_symbols)
+    rand_symbols = random.sample(symbols, n_symbols)
     pf2_df = df[df.symbol.isin(rand_symbols)]
     pf2_avg = get_avg_prices(pf2_df)
     pf2_std = pf2_avg.std()
     val_list.append({"Portfolio": f"{n_symbols} random stocks", "Std. dev": pf2_std, "returns": pf2_avg[-1]-1})
     print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
-
-    # Portfolio 4: All data
-    pf4_df = df.copy()
-    pf4_avg = get_avg_prices(pf4_df)
-    pf4_std = pf4_avg.std()
-    val_list.append({"Portfolio": "250 random stocks", "Std. dev": pf4_std, "returns": pf4_avg[-1]-1})
-    print(f"St. dev for 250 random stocks: {pf4_std:.3f}")
 
     # Portfolio 3: Portfolio 2 but with negatively correlated stocks
     neg_symbols = list()
@@ -113,7 +100,30 @@ def main():
     val_list.append({"Portfolio": f"{n_symbols} random stocks w/ min. corr", "Std. dev": pf5_std, "returns": pf5_avg[-1]-1})
     print(f"St. dev for {n_symbols} random stocks w/ neg. corr: {pf5_std:.3f}")
 
+    # Portfolio 3: 1 stock each from N random sectors
+    sectors_list = sp500_df.Sector.unique()
+    rand_symbols = list()
+    for sect in sectors_list:
+        sym_in_sect = list(sp500_df[sp500_df.Sector == sect].Symbol.values)
+        sym = random.choice(df[df.symbol.isin(sym_in_sect)].symbol.values)
+        rand_symbols.append(sym)
+    rand_symbols = random.sample(rand_symbols, n_symbols)
+    pf2_df = df[df.symbol.isin(rand_symbols)]
+    pf2_avg = get_avg_prices(pf2_df)
+    pf2_std = pf2_avg.std()
+    val_list.append({"Portfolio": f"{n_symbols} diversified random stocks", "Std. dev": pf2_std, "returns": pf2_avg[-1]-1})
+    print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
+
+    # Portfolio 4: All data
+    pf4_df = df.copy()
+    pf4_avg = get_avg_prices(pf4_df)
+    pf4_std = pf4_avg.std()
+    val_list.append({"Portfolio": "250 random stocks", "Std. dev": pf4_std, "returns": pf4_avg[-1]-1})
+    print(f"St. dev for 250 random stocks: {pf4_std:.3f}")
+
     val_df = pd.DataFrame(val_list)
+    val_df = val_df.assign(rel_risk=val_df["Std. dev"] / val_df["returns"])
+
     fig = px.bar(val_df, x="Portfolio", y="Std. dev", color="Portfolio",
                  title="Comparison of variance in hypothetical portfolios",
                  color_discrete_sequence=["DarkGray"] * (n_symbols + 1) + ["CadetBlue", "IndianRed", "CornflowerBlue", "DodgerBlue"],
@@ -123,7 +133,7 @@ def main():
     fig.write_image("out_img/portfolio_stds.png")
 
     fig = px.bar(val_df, x="Portfolio", y="returns", color="Portfolio",
-                 title="Comparison of return in hypothetical portfolios",
+                 title="Comparison of returns in hypothetical portfolios",
                  color_discrete_sequence=["DarkGray"] * (n_symbols + 1) + ["CadetBlue", "IndianRed", "CornflowerBlue", "DodgerBlue"],
                  width=1000, height=600,
                  template="plotly_white")
@@ -134,17 +144,13 @@ def main():
 
     new_val_list = list()
     for i in range(10):
-        rand_symbols = list()
-        n_symbols = 10
-        for sect in sectors_list:
-            sym_in_sect = list(sp500_df[sp500_df.Sector == sect].Symbol.values)
-            sym = random.choice(df[df.symbol.isin(sym_in_sect)].symbol.values)
-            rand_symbols.append(sym)
-        rand_symbols = random.sample(rand_symbols, n_symbols)
+        n_symbols = 20
+        rand_symbols = random.sample(symbols, n_symbols)
         tmp_df = df[df.symbol.isin(rand_symbols)]
         tmp_avg = get_avg_prices(tmp_df)
         tmp_std = tmp_avg.std()
-        new_val_list.append({"Portfolio": f"{n_symbols} random stocks set: {i+1}", "Std. dev": tmp_std, "returns": tmp_avg[-1]-1})
+        new_val_list.append({"Portfolio": f"{n_symbols} random stocks set: {i+1}", "Std. dev": tmp_std,
+                             "returns": tmp_avg[-1]-1, "diversified": False})
         print(f"St. dev for {n_symbols} random stocks: {tmp_std:.3f}")
 
         min_symbols = list()
@@ -157,12 +163,16 @@ def main():
         tmp_df = df[df.symbol.isin(rand_symbols + min_symbols)]
         tmp_avg = get_avg_prices(tmp_df)
         tmp_std = tmp_avg.std()
-        new_val_list.append({"Portfolio": f"Set {i+1} w/ neg. corr", "Std. dev": tmp_std, "returns": tmp_avg[-1]-1})
-        print(f"St. dev for {n_symbols} random stocks w/ neg. corr: {pf3_std:.3f}")
+        new_val_list.append({"Portfolio": f"Set {i+1} w/ less. corr", "Std. dev": tmp_std,
+                             "returns": tmp_avg[-1]-1, "diversified": True})
+        print(f"St. dev for {n_symbols} random stocks w/ less. corr: {pf3_std:.3f}")
 
     new_val_df = pd.DataFrame(new_val_list)
+    new_val_df = new_val_df.assign(rel_risk=new_val_df["Std. dev"] / new_val_df["returns"])
+    print(new_val_df.groupby("diversified").mean())
 
-    fig = px.scatter(new_val_df, x="Std. dev", y="returns", color="Portfolio",
+
+    fig = px.scatter(new_val_df, x="Std. dev", y="returns", color="diversified",
                      color_discrete_sequence=["DarkGray", "CornflowerBlue"],
                  width=1000, height=600,
                  template="plotly_white")
@@ -177,7 +187,7 @@ def main():
     # fig.write_image("out_img/portfolio_stds.png")
 
     fig = px.bar(new_val_df, x="Portfolio", y="returns", color="Portfolio",
-                 title="Comparison of return in hypothetical portfolios",
+                 title="Comparison of returns in hypothetical portfolios",
                  color_discrete_sequence=["DarkGray", "CornflowerBlue"],
                  width=1000, height=600,
                  template="plotly_white")
