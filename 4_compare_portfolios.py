@@ -38,6 +38,7 @@ def main():
     symbols = list(np.sort(df["symbol"].unique()))
 
     sp500_df = utils.get_sp_500_data()
+    sectors_list = list(sp500_df.Sector.unique())
 
     # ========== DETERMINE SIMILARITIES ==========
     # Calculate similarities between each stock
@@ -52,147 +53,93 @@ def main():
             p_array[i, j] = p_ij
 
     # ========== CONSTRUCT PORTFOLIOS ==========
-    val_list = list()
-
-    # Portfolio 1: Just one sector
-    for sect in (list(sp500_df.Sector.unique())):
-        sect_syms = sp500_df[sp500_df.Sector == sect].Symbol.values
-        pf1_df = df[df.symbol.isin(sect_syms)]
+    out_list = list()
+    
+    # Set 1: n stocks from just one sector
+    n_symbols = 10
+    n_sectors = 7
+    sects = random.sample(sectors_list, n_sectors)
+    for i in range(n_sectors):
+        sect = sects[i]
+        temp_syms = [s for s in list(sp500_df[sp500_df.Sector == sect].Symbol.values) if s in df.symbol.unique()]
+        temp_syms = random.sample(temp_syms, n_symbols)
+        pf1_df = df[df.symbol.isin(temp_syms)]
         pf1_avg = get_avg_prices(pf1_df)
         pf1_std = pf1_avg.std()
-        val_list.append({"Portfolio": sect, "Std. dev": pf1_std, "returns": pf1_avg[-1]-1})
+        out_list.append({"Portfolio": sect, "Std. dev": pf1_std,
+                         "returns": pf1_avg[-1] - 1, "symbols": temp_syms, "diversified": False})
         print(f"St. dev for portfolio in {sect} sector: {pf1_std:.3f}")
+        
+        # Now diversify the portfolio
+        new_syms = list()
+        for sym in temp_syms:
+            sym_ind = symbols.index(sym)
+            corr_row = r_array[sym_ind]
+            # corr_ind = np.argmin(np.abs(corr_row))
+            corr_ind = np.argmin(corr_row)
+            corr_sym = symbols[corr_ind]
+            new_syms.append(corr_sym)
+        div_syms = temp_syms + new_syms
+        pf1d_df = df[df.symbol.isin(div_syms)]
+        pf1d_avg = get_avg_prices(pf1d_df)
+        pf1d_std = pf1d_avg.std()
+        out_list.append({"Portfolio": sect, "Std. dev": pf1d_std,
+                         "returns": pf1d_avg[-1] - 1, "symbols": div_syms, "diversified": True})
+        print(f"St. dev for portfolio in {sect} sector w/ neg. corr: {pf1d_std:.3f}")
 
-    # Portfolio 2: N random stocks
-    n_symbols = 10
-    rand_symbols = random.sample(symbols, n_symbols)
-    pf2_df = df[df.symbol.isin(rand_symbols)]
-    pf2_avg = get_avg_prices(pf2_df)
-    pf2_std = pf2_avg.std()
-    val_list.append({"Portfolio": f"{n_symbols} random stocks", "Std. dev": pf2_std, "returns": pf2_avg[-1]-1})
-    print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
+    # Set 2: N random stocks
+    n_random_portfolios = 4
+    for i in range(n_random_portfolios):
+        temp_syms = random.sample(symbols, n_symbols)
+        pf2_df = df[df.symbol.isin(temp_syms)]
+        pf2_avg = get_avg_prices(pf2_df)
+        pf2_std = pf2_avg.std()
+        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Std. dev": pf2_std,
+                         "returns": pf2_avg[-1] - 1, "symbols": temp_syms, "diversified": False})
+        print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
+        # Now diversify the portfolio
+        new_syms = list()
+        for sym in temp_syms:
+            sym_ind = symbols.index(sym)
+            corr_row = r_array[sym_ind]
+            # corr_ind = np.argmin(np.abs(corr_row))
+            corr_ind = np.argmin(corr_row)
+            corr_sym = symbols[corr_ind]
+            new_syms.append(corr_sym)
+        div_syms = temp_syms + new_syms
+        pf2d_df = df[df.symbol.isin(div_syms)]
+        pf2d_avg = get_avg_prices(pf2d_df)
+        pf2d_std = pf2d_avg.std()
+        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Std. dev": pf2d_std,
+                         "returns": pf2d_avg[-1] - 1, "symbols": temp_syms, "diversified": True})
+        print(f"St. dev for {n_symbols} random stocks w/ diversification: {pf2d_std:.3f}")
 
-    # Portfolio 3: Portfolio 2 but with negatively correlated stocks
-    neg_symbols = list()
-    for sym in rand_symbols:
-        sym_ind = symbols.index(sym)
-        corr_row = r_array[sym_ind]
-        neg_corr_ind = np.argmin(corr_row)
-        neg_sym = symbols[neg_corr_ind]
-        neg_symbols.append(neg_sym)
-    pf3_df = df[df.symbol.isin(rand_symbols + neg_symbols)]
-    pf3_avg = get_avg_prices(pf3_df)
-    pf3_std = pf3_avg.std()
-    val_list.append({"Portfolio": f"{n_symbols} random stocks w/ neg. corr", "Std. dev": pf3_std, "returns": pf3_avg[-1]-1})
-    print(f"St. dev for {n_symbols} random stocks w/ neg. corr: {pf3_std:.3f}")
+    # # Portfolio 3: All data
+    # pf3_df = df.copy()
+    # pf3_avg = get_avg_prices(pf3_df)
+    # pf3_std = pf3_avg.std()
+    # out_list.append({"Portfolio": "250 random stocks", "Std. dev": pf3_std,
+    #                  "returns": pf3_avg[-1] - 1, "diversified": True})
+    # print(f"St. dev for 250 random stocks: {pf3_std:.3f}")
 
-    # Portfolio 5: Portfolio 2 but with least correlated stocks
-    min_symbols = list()
-    for sym in rand_symbols:
-        sym_ind = symbols.index(sym)
-        corr_row = r_array[sym_ind]
-        min_corr_ind = np.argmin(np.abs(corr_row))
-        min_sym = symbols[min_corr_ind]
-        min_symbols.append(min_sym)
-    pf5_df = df[df.symbol.isin(rand_symbols + min_symbols)]
-    pf5_avg = get_avg_prices(pf5_df)
-    pf5_std = pf5_avg.std()
-    val_list.append({"Portfolio": f"{n_symbols} random stocks w/ min. corr", "Std. dev": pf5_std, "returns": pf5_avg[-1]-1})
-    print(f"St. dev for {n_symbols} random stocks w/ neg. corr: {pf5_std:.3f}")
+    out_df = pd.DataFrame(out_list)
+    out_df = out_df.assign(rel_risk=out_df["Std. dev"] / out_df["returns"])
 
-    # Portfolio 3: 1 stock each from N random sectors
-    sectors_list = sp500_df.Sector.unique()
-    rand_symbols = list()
-    for sect in sectors_list:
-        sym_in_sect = list(sp500_df[sp500_df.Sector == sect].Symbol.values)
-        sym = random.choice(df[df.symbol.isin(sym_in_sect)].symbol.values)
-        rand_symbols.append(sym)
-    rand_symbols = random.sample(rand_symbols, n_symbols)
-    pf2_df = df[df.symbol.isin(rand_symbols)]
-    pf2_avg = get_avg_prices(pf2_df)
-    pf2_std = pf2_avg.std()
-    val_list.append({"Portfolio": f"{n_symbols} diversified random stocks", "Std. dev": pf2_std, "returns": pf2_avg[-1]-1})
-    print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
-
-    # Portfolio 4: All data
-    pf4_df = df.copy()
-    pf4_avg = get_avg_prices(pf4_df)
-    pf4_std = pf4_avg.std()
-    val_list.append({"Portfolio": "250 random stocks", "Std. dev": pf4_std, "returns": pf4_avg[-1]-1})
-    print(f"St. dev for 250 random stocks: {pf4_std:.3f}")
-
-    val_df = pd.DataFrame(val_list)
-    val_df = val_df.assign(rel_risk=val_df["Std. dev"] / val_df["returns"])
-
-    fig = px.bar(val_df, x="Portfolio", y="Std. dev", color="Portfolio",
+    fig = px.bar(out_df, x="Portfolio", y="Std. dev", color="diversified", barmode="group",
                  title="Comparison of variance in hypothetical portfolios",
-                 color_discrete_sequence=["DarkGray"] * (n_symbols + 1) + ["CadetBlue", "IndianRed", "CornflowerBlue", "DodgerBlue"],
+                 color_discrete_sequence=["DarkGray", "CadetBlue"] * (n_sectors + 1) + ["IndianRed"],
                  width=1000, height=600,
                  template="plotly_white")
     fig.show()
     fig.write_image("out_img/portfolio_stds.png")
 
-    fig = px.bar(val_df, x="Portfolio", y="returns", color="Portfolio",
-                 title="Comparison of returns in hypothetical portfolios",
-                 color_discrete_sequence=["DarkGray"] * (n_symbols + 1) + ["CadetBlue", "IndianRed", "CornflowerBlue", "DodgerBlue"],
+    fig = px.bar(out_df, x="Portfolio", y="rel_risk", color="diversified", barmode="group",
+                 title="Comparison of relative risk in hypothetical portfolios",
+                 color_discrete_sequence=["DarkGray", "CadetBlue"] * (n_sectors + 1) + ["IndianRed"],
                  width=1000, height=600,
                  template="plotly_white")
     fig.show()
-    fig.write_image("out_img/portfolio_returns.png")
-
-    # ========== REPEAT PROCESS FOR DIFFERENT RANDOM STOCKS ==========
-
-    new_val_list = list()
-    for i in range(10):
-        n_symbols = 20
-        rand_symbols = random.sample(symbols, n_symbols)
-        tmp_df = df[df.symbol.isin(rand_symbols)]
-        tmp_avg = get_avg_prices(tmp_df)
-        tmp_std = tmp_avg.std()
-        new_val_list.append({"Portfolio": f"{n_symbols} random stocks set: {i+1}", "Std. dev": tmp_std,
-                             "returns": tmp_avg[-1]-1, "diversified": False})
-        print(f"St. dev for {n_symbols} random stocks: {tmp_std:.3f}")
-
-        min_symbols = list()
-        for sym in rand_symbols:
-            sym_ind = symbols.index(sym)
-            corr_row = r_array[sym_ind]
-            min_corr_ind = np.argmin(np.abs(corr_row))
-            min_sym = symbols[min_corr_ind]
-            min_symbols.append(min_sym)
-        tmp_df = df[df.symbol.isin(rand_symbols + min_symbols)]
-        tmp_avg = get_avg_prices(tmp_df)
-        tmp_std = tmp_avg.std()
-        new_val_list.append({"Portfolio": f"Set {i+1} w/ less. corr", "Std. dev": tmp_std,
-                             "returns": tmp_avg[-1]-1, "diversified": True})
-        print(f"St. dev for {n_symbols} random stocks w/ less. corr: {pf3_std:.3f}")
-
-    new_val_df = pd.DataFrame(new_val_list)
-    new_val_df = new_val_df.assign(rel_risk=new_val_df["Std. dev"] / new_val_df["returns"])
-    print(new_val_df.groupby("diversified").mean())
-
-
-    fig = px.scatter(new_val_df, x="Std. dev", y="returns", color="diversified",
-                     color_discrete_sequence=["DarkGray", "CornflowerBlue"],
-                 width=1000, height=600,
-                 template="plotly_white")
-    fig.show()
-
-    fig = px.bar(new_val_df, x="Portfolio", y="Std. dev", color="Portfolio",
-                 title="Comparison of variance in hypothetical portfolios",
-                 color_discrete_sequence=["DarkGray", "CornflowerBlue"],
-                 width=1000, height=600,
-                 template="plotly_white")
-    fig.show()
-    # fig.write_image("out_img/portfolio_stds.png")
-
-    fig = px.bar(new_val_df, x="Portfolio", y="returns", color="Portfolio",
-                 title="Comparison of returns in hypothetical portfolios",
-                 color_discrete_sequence=["DarkGray", "CornflowerBlue"],
-                 width=1000, height=600,
-                 template="plotly_white")
-    fig.show()
-    # fig.write_image("out_img/portfolio_returns.png")
+    fig.write_image("out_img/portfolio_rel_risk.png")
 
 
 if __name__ == '__main__':
