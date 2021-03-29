@@ -65,10 +65,10 @@ def main():
         temp_syms = random.sample(temp_syms, n_symbols)
         pf1_df = df[df.symbol.isin(temp_syms)]
         pf1_avg = get_avg_prices(pf1_df)
-        pf1_std = pf1_avg.std()
-        out_list.append({"Portfolio": sect, "Std. dev": pf1_std,
+        pf1_var = pf1_avg.var()
+        out_list.append({"Portfolio": sect, "Variance": pf1_var,
                          "returns": pf1_avg[-1] - 1, "symbols": temp_syms, "diversified": False})
-        print(f"St. dev for portfolio in {sect} sector: {pf1_std:.3f}")
+        print(f"Variance for portfolio in {sect} sector: {pf1_var:.3f}")
         
         # Now diversify the portfolio
         new_syms = list()
@@ -82,10 +82,10 @@ def main():
         div_syms = temp_syms + new_syms
         pf1d_df = df[df.symbol.isin(div_syms)]
         pf1d_avg = get_avg_prices(pf1d_df)
-        pf1d_std = pf1d_avg.std()
-        out_list.append({"Portfolio": sect, "Std. dev": pf1d_std,
+        pf1d_var = pf1d_avg.var()
+        out_list.append({"Portfolio": sect, "Variance": pf1d_var,
                          "returns": pf1d_avg[-1] - 1, "symbols": div_syms, "diversified": True})
-        print(f"St. dev for portfolio in {sect} sector w/ neg. corr: {pf1d_std:.3f}")
+        print(f"Variance for portfolio in {sect} sector w/ neg. corr: {pf1d_var:.3f}")
 
     # Set 2: N random stocks
     n_random_portfolios = 4
@@ -93,10 +93,10 @@ def main():
         temp_syms = random.sample(symbols, n_symbols)
         pf2_df = df[df.symbol.isin(temp_syms)]
         pf2_avg = get_avg_prices(pf2_df)
-        pf2_std = pf2_avg.std()
-        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Std. dev": pf2_std,
+        pf2_var = pf2_avg.var()
+        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Variance": pf2_var,
                          "returns": pf2_avg[-1] - 1, "symbols": temp_syms, "diversified": False})
-        print(f"St. dev for {n_symbols} random stocks: {pf2_std:.3f}")
+        print(f"Variance for {n_symbols} random stocks: {pf2_var:.3f}")
         # Now diversify the portfolio
         new_syms = list()
         for sym in temp_syms:
@@ -109,29 +109,21 @@ def main():
         div_syms = temp_syms + new_syms
         pf2d_df = df[df.symbol.isin(div_syms)]
         pf2d_avg = get_avg_prices(pf2d_df)
-        pf2d_std = pf2d_avg.std()
-        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Std. dev": pf2d_std,
+        pf2d_var = pf2d_avg.var()
+        out_list.append({"Portfolio": f"{n_symbols} random stocks - set {i+1}", "Variance": pf2d_var,
                          "returns": pf2d_avg[-1] - 1, "symbols": temp_syms, "diversified": True})
-        print(f"St. dev for {n_symbols} random stocks w/ diversification: {pf2d_std:.3f}")
-
-    # # Portfolio 3: All data
-    # pf3_df = df.copy()
-    # pf3_avg = get_avg_prices(pf3_df)
-    # pf3_std = pf3_avg.std()
-    # out_list.append({"Portfolio": "250 random stocks", "Std. dev": pf3_std,
-    #                  "returns": pf3_avg[-1] - 1, "diversified": True})
-    # print(f"St. dev for 250 random stocks: {pf3_std:.3f}")
+        print(f"Variance for {n_symbols} random stocks w/ diversification: {pf2d_var:.3f}")
 
     out_df = pd.DataFrame(out_list)
-    out_df = out_df.assign(rel_risk=out_df["Std. dev"] / out_df["returns"])
+    out_df = out_df.assign(rel_risk=out_df["Variance"] / out_df["returns"])
 
-    fig = px.bar(out_df, x="Portfolio", y="Std. dev", color="diversified", barmode="group",
+    fig = px.bar(out_df, x="Portfolio", y="Variance", color="diversified", barmode="group",
                  title="Comparison of variance in hypothetical portfolios",
                  color_discrete_sequence=["DarkGray", "CadetBlue"] * (n_sectors + 1) + ["IndianRed"],
                  width=1000, height=600,
                  template="plotly_white")
     fig.show()
-    fig.write_image("out_img/portfolio_stds.png")
+    fig.write_image("out_img/portfolio_vars.png")
 
     fig = px.bar(out_df, x="Portfolio", y="rel_risk", color="diversified", barmode="group",
                  title="Comparison of relative risk in hypothetical portfolios",
