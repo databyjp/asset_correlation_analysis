@@ -48,8 +48,8 @@ def main():
     with open("../../tokens/iex_token.txt", "r") as f:
         iex_tkn = f.read().strip()
 
-    date_range = "3m"
-    symbol = "MSFT"
+    date_range = "6m"
+    symbol = "AAPL"
     resp = get_prices(symbol, iex_tkn, date_param=date_range)
     if resp is not None:
         prices_obj = json.loads(resp.text)
@@ -57,7 +57,8 @@ def main():
 
     fig = px.line(df, x="date", y="close", template="plotly_white",
                   title=f"Stock price history for {symbol}",
-                  height=800, width=1600)
+                  height=800, width=1600,
+                  labels={'close': "Close", "date": "Date"})
     fig.show()
     fig.write_image("out_img/msft_example.png")
 
